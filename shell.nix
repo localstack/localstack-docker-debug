@@ -9,6 +9,7 @@ mkShell {
       dnslib
       ipython
       go
+      awscli2
     ]))
   ];
 }
