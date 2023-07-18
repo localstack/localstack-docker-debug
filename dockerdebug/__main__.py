@@ -4,6 +4,7 @@ import ssl
 import dns.resolver
 import dns.rdatatype
 import dns.rrset
+from dnslib.dns import QTYPE, DNSQuestion, DNSRecord
 
 
 TEST_DNS_NAMES = [
@@ -49,6 +50,17 @@ def resolve_name(name: str) -> dns.rrset.RRset | NoDomain:
 
 
 if __name__ == "__main__":
+
+    q = DNSRecord(q=DNSQuestion("amazonaws.com", QTYPE.A))
+    a = DNSRecord.parse(q.send("8.8.8.8", 53, tcp=False))
+    for rr in a.rr:
+        print(rr.rdata)
+
+    print(socket.gethostbyname_ex("amazonaws.com"))
+
+    raise SystemExit(0)
+
+
     verify_ssl_certificate("localhost", 9000)
     # for name in TEST_DNS_NAMES:
     #     print(resolve_name(name))
