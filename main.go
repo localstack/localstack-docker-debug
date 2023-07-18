@@ -1,112 +1,43 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"net"
-	"os"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
+	"github.com/miekg/dns"
 )
 
-// Get the contianer ID of the currently running container
-func getSelfID() (string, error) {
-	hostname := os.Getenv("HOSTNAME")
-	if hostname != "" {
-		return hostname, nil
-	}
-	return "", fmt.Errorf("no $HOSTNAME set")
-}
+func handleStaticValue(w dns.ResponseWriter, r *dns.Msg) {
+	qname := r.Question[0].Name
+	log.Printf("got request for %s", qname)
 
-type Container struct {
-	id  string
-	cli *client.Client
+	m := new(dns.Msg)
+	m.SetReply(r)
 
-	networkID string
-}
+	if qname == "example.com." {
+		log.Printf("Emulating server failure")
+		m.Rcode = dns.RcodeServerFailure
+		w.WriteMsg(m)
+		return
+	}
 
-func (c *Container) AttachToNetwork(ctx context.Context, networkID string) error {
-	err := c.cli.NetworkConnect(ctx, networkID, c.id, &network.EndpointSettings{})
-	if err != nil {
-		return fmt.Errorf("connecting container to network: %w", err)
+	rr := dns.A{
+		Hdr: dns.RR_Header{Name: qname, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 0},
+		A:   net.IPv4(10, 10, 10, 10),
 	}
-	c.networkID = networkID
-	return nil
-}
-
-func (c *Container) DetachFromNetwork(ctx context.Context) error {
-	err := c.cli.NetworkDisconnect(ctx, c.networkID, c.id, true)
-	if err != nil {
-		return fmt.Errorf("disconnecting container from network: %w", err)
-	}
-	return nil
-}
-
-func (c *Container) PrintInterfaces() {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		log.Fatalf("getting network interfaces: %v", err)
-	}
-	for _, i := range ifaces {
-		log.Printf("Interface: %s", i.Name)
-		addrs, err := i.Addrs()
-		if err != nil {
-			log.Printf("error getting addresses for interface %v: %v", i, err)
-		}
-		for _, add := range addrs {
-			log.Printf("  %v", add)
-		}
-	}
+	m.Answer = append(m.Answer, &rr)
+	log.Printf("%+#v", m)
+	// indicate failure
+	w.WriteMsg(m)
 }
 
 func main() {
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		panic(err)
+	dns.HandleFunc(".", handleStaticValue)
+	server := &dns.Server{
+		Addr:      ":53",
+		Net:       "udp",
+		ReusePort: true,
 	}
-	defer cli.Close()
-
-	currentID, err := getSelfID()
-	if err != nil {
-		panic(err)
-	}
-	log.Printf("container (short) name: %s", currentID)
-
-	c := Container{
-		id:  currentID,
-		cli: cli,
-	}
-
-	// make sure we have a network
-	networkName := "testnetwork"
-	res, err := cli.NetworkCreate(ctx, networkName, types.NetworkCreate{})
-	if err != nil {
-		panic(err)
-	}
-	networkID := res.ID
-	defer func() {
-		err := cli.NetworkRemove(ctx, networkID)
-		if err != nil {
-			log.Printf("deleting network: %v", err)
-		}
-	}()
-
-	log.Printf("1")
-	c.PrintInterfaces()
-
-	if err := c.AttachToNetwork(ctx, networkID); err != nil {
-		panic(err)
-	}
-	log.Printf("2")
-	c.PrintInterfaces()
-
-	if err := c.DetachFromNetwork(ctx); err != nil {
-		log.Printf("disconnecting from network: %v", err)
-	}
-	log.Printf("3")
-	c.PrintInterfaces()
+	log.Printf("listening for DNS requests")
+	log.Fatal(server.ListenAndServe())
 }

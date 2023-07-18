@@ -1,12 +1,23 @@
 version: "3.8"
 
 services:
-  ls:
-    image: localstack/localstack
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-
   debug:
+    image: ghcr.io/simonrw/docker-debug:main
+    command: sleep infinity
+    dns:
+      - 10.0.20.20
+      - 8.8.8.8
+    networks:
+      - ls
+
+  dns:
     build: .
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      ls:
+        ipv4_address: 10.0.20.20
+
+networks:
+  ls:
+    ipam:
+      config:
+        - subnet: 10.0.20.0/24
