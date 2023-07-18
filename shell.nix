@@ -8,6 +8,7 @@ mkShell {
       dnspython
       dnslib
       ipython
+      go
     ]))
   ];
 }
