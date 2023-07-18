@@ -14,7 +14,8 @@ import (
 )
 
 func main() {
-	upstreamURL, err := getEndpointUrl()
+	lsContainerName := os.Getenv("LS_CONTAINER_NAME")
+	upstreamURL, err := getEndpointUrl(lsContainerName)
 	if err != nil {
 		panic(err)
 	}
@@ -39,7 +40,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":5000", nil))
 }
 
-func getEndpointUrl() (string, error) {
+func getEndpointUrl(containerName string) (string, error) {
 	// Use the AWS SDK to get the API Gateway URL
 	awsEndpointURL := os.Getenv("LS_ENDPOINT_URL")
 	awsRegion := "us-east-1"
@@ -72,7 +73,9 @@ func getEndpointUrl() (string, error) {
 	outputs := res.Stacks[0].Outputs
 	for _, output := range outputs {
 		if strings.Contains(*output.OutputValue, "execute-api") {
-			return *output.OutputValue, nil
+			// workaround URL returning - replace localhost.localstack.cloud with the container name of LocalStack as per the troubleshooting guide
+			fixedURL := strings.Replace(*output.OutputValue, "localhost.localstack.cloud", containerName, 1)
+			return fixedURL, nil
 		}
 	}
 
