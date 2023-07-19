@@ -1,12 +1,12 @@
-FROM golang as builder
+FROM python:3.11-slim
 
 WORKDIR /app
-COPY go.sum go.mod ./
-RUN go mod download
-COPY main.go ./
-RUN CGO_ENABLED=0 go build
-
-FROM scratch
-
-COPY --from=builder /app/docker-network-diagnosis /d
-ENTRYPOINT ["/d"]
+RUN python -m venv .venv
+COPY setup.cfg setup.py ./
+# create stub project
+# TODO: consistent version
+RUN mkdir dockerdebug && echo '__version__ = "0.1.0"' > dockerdebug/__init__.py
+RUN /app/.venv/bin/python -m pip install -e .
+COPY dockerdebug/ /app/dockerdebug/
+ENTRYPOINT ["/app/.venv/bin/python"]
+CMD ["-m", "dockerdebug"]
