@@ -1,54 +1,15 @@
-import socket
-import ssl
+import logging
 from typing import Iterable, cast
+from urllib.parse import urlunparse, ParseResult
 
-import dns.resolver
-import dns.rdatatype
-import dns.rrset
 from docker import DockerClient
 from docker.models.containers import Container
 
+import requests
 
-TEST_DNS_NAMES = [
-    "host.localstack.cloud",
-    "host.docker.internal",
-    "localhost.localstack.cloud",
-    "example.com",
-    "s3.amazonaws.com",
-]
-
-
-# https://www.askpython.com/python/python-program-to-verify-ssl-certificates
-def verify_ssl_certificate(hostname: str, port: int = 443) -> bool:
-    context = ssl.create_default_context()
-
-    try:
-        with socket.create_connection((hostname, port)) as sock:
-            try:
-                with context.wrap_socket(sock, server_hostname=hostname) as ssock:
-                    ssock.do_handshake()
-                    ssock.getpeercert()
-                    return True
-            except ssl.SSLCertVerificationError:
-                return False
-    except ConnectionRefusedError:
-        return False
-
-
-class NoDomain:
-    def __init__(self, question: str):
-        self.question = question
-
-    def __repr__(self) -> str:
-        return f"{self.question}: NO_DOMAIN"
-
-
-def resolve_name(name: str) -> dns.rrset.RRset | NoDomain:
-    try:
-        answer = dns.resolver.resolve(name, rdtype=dns.rdatatype.A)
-        return answer.rrset or NoDomain(name)
-    except dns.resolver.NXDOMAIN:
-        return NoDomain(name)
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s | %(levelname)-8s | %(message)s")
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
 
 
 class CannotFindLocalStackContainer(Exception):
@@ -56,29 +17,29 @@ class CannotFindLocalStackContainer(Exception):
 
 
 class MultipleLocalStackContainerCandidates(Exception):
-    def __init__(self, candidates: set[str]):
+    def __init__(self, candidates: set[Container]):
         self.candidates = candidates
 
 
-def _containers_with_localstack_labels(containers: Iterable[Container]) -> set[str]:
+def _containers_with_localstack_labels(containers: Iterable[Container]) -> set[Container]:
     candidates = set()
     for container in containers:
         if container.labels.get("authors") == "LocalStack Contributors":
-            candidates.add(container.id)
+            candidates.add(container)
             continue
     return candidates
 
 
-def _containers_with_exposed_ports(containers: Iterable[Container]) -> set[str]:
+def _containers_with_exposed_ports(containers: Iterable[Container]) -> set[Container]:
     candidates = set()
     for container in containers:
         if "4566/tcp" in container.ports:
-            candidates.add(container.id)
+            candidates.add(container)
     return candidates
 
 
-def find_localstack_container(containers: Iterable[Container]) -> str:
-    candidates: set[str] = set()
+def find_localstack_container(containers: Iterable[Container]) -> Container:
+    candidates: set[Container] = set()
     candidates = candidates.union(_containers_with_localstack_labels(containers))
     candidates = candidates.union(_containers_with_exposed_ports(containers))
     if len(candidates) == 1:
@@ -89,12 +50,61 @@ def find_localstack_container(containers: Iterable[Container]) -> str:
         raise MultipleLocalStackContainerCandidates(candidates)
 
 
+def can_connect_to_localstack(domain: str, port: int = 4566, protocol: str = "http") -> bool:
+    url = urlunparse(
+        ParseResult(
+            scheme=protocol,
+            netloc=f"{domain}:{port}",
+            path="/_localstack/health",
+            params="",
+            query="",
+            fragment="",
+        )
+    )
+    try:
+        r = requests.get(url)
+    except requests.exceptions.ConnectionError:
+        return False
+
+    return r.status_code < 400
+
+
+def get_container_user_network_names(container: Container) -> list[str]:
+    settings = container.attrs["NetworkSettings"]
+    network_names = []
+    for network_name in settings.get("Networks", {}):
+        if network_name == "bridge":
+            continue
+
+        network_names.append(network_name)
+
+    return network_names
+
+
+def test_connectivity_to_localstack(client: DockerClient, container: Container):
+    LOG.info("testing connectivity to LocalStack")
+    # try connecting as is using the container name
+    if container.name and not can_connect_to_localstack(container.name):
+        LOG.info(f"cannot connect to container via name {container.name}")
+
+    if networks := get_container_user_network_names(container):
+        for network in networks:
+            breakpoint()
+            # attach this container to the network and try
+            # detach this container from the network
+            pass
+    else:
+        LOG.info("no user-defined networks found")
+
+
 if __name__ == "__main__":
-    print("Starting")
+    LOG.info("starting")
 
     client = DockerClient()
     containers = cast(list[Container], client.containers.list())
-    ls_container_id = find_localstack_container(containers)
-    print(f"Found local stack container id: {ls_container_id}")
+    ls_container = find_localstack_container(containers)
+    LOG.debug(f"found local stack container id: {ls_container.id}")
 
-    print("Done")
+    test_connectivity_to_localstack(client, ls_container)
+
+    LOG.info("done")
