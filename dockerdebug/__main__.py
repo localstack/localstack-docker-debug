@@ -5,6 +5,7 @@ import dns.resolver
 import dns.rdatatype
 import dns.rrset
 from dnslib.dns import QTYPE, DNSQuestion, DNSRecord
+import docker
 
 
 TEST_DNS_NAMES = [
@@ -50,6 +51,13 @@ def resolve_name(name: str) -> dns.rrset.RRset | NoDomain:
 
 
 if __name__ == "__main__":
+    print("Starting")
+
+    client = docker.DockerClient()
+    containers = client.containers
+
+    print("Done")
+    raise SystemExit(0)
 
     q = DNSRecord(q=DNSQuestion("amazonaws.com", QTYPE.A))
     a = DNSRecord.parse(q.send("8.8.8.8", 53, tcp=False))

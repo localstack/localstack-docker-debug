@@ -10,6 +10,10 @@ mkShell {
       ipython
       go
       awscli2
+      docker
+      pudb
     ]))
+    watchexec
   ];
+  PYTHONBREAKPOINT = "pudb.set_trace";
 }
