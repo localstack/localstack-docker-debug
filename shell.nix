@@ -12,6 +12,7 @@ mkShell {
       awscli2
       docker
       pudb
+      click
     ]))
     watchexec
   ];

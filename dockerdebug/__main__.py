@@ -1,8 +1,12 @@
 import logging
+import socket
 from typing import Iterable, cast
 from urllib.parse import urlunparse, ParseResult
 
+import click
+from click.exceptions import ClickException
 from docker import DockerClient
+from docker.errors import NotFound
 from docker.models.containers import Container
 
 import requests
@@ -50,7 +54,9 @@ def find_localstack_container(containers: Iterable[Container]) -> Container:
         raise MultipleLocalStackContainerCandidates(candidates)
 
 
-def can_connect_to_localstack(domain: str, port: int = 4566, protocol: str = "http") -> bool:
+def can_connect_to_localstack_health_endpoint(
+    domain: str, port: int = 4566, protocol: str = "http"
+) -> bool:
     url = urlunparse(
         ParseResult(
             scheme=protocol,
@@ -84,9 +90,12 @@ def get_container_user_network_names(container: Container) -> list[str]:
 def test_connectivity_to_localstack(client: DockerClient, container: Container):
     LOG.info("testing connectivity to LocalStack")
     # try connecting as is using the container name
-    if container.name and not can_connect_to_localstack(container.name):
-        LOG.info(f"cannot connect to container via name {container.name}")
+    if container.name and can_connect_to_localstack_health_endpoint(container.name):
+        LOG.info("connectivity to target container successful")
+        return
 
+    LOG.info(f"cannot connect to container via name {container.name}")
+    # try to find a way to connect to localstack
     if networks := get_container_user_network_names(container):
         for network in networks:
             breakpoint()
@@ -97,14 +106,46 @@ def test_connectivity_to_localstack(client: DockerClient, container: Container):
         LOG.info("no user-defined networks found")
 
 
-if __name__ == "__main__":
-    LOG.info("starting")
+@click.group
+def main():
+    pass
 
+
+@main.command
+@click.option(
+    "-t",
+    "--target-container",
+    "target_container_id",
+    help="Container to test connectivity to. If not specified, assume LocalStack",
+)
+@click.option(
+    "--localstack",
+    "target_is_localstack",
+    help="Assume target container is localstack",
+    is_flag=True,
+)
+def diagnose(target_container_id: str | None, target_is_localstack: bool):
     client = DockerClient()
-    containers = cast(list[Container], client.containers.list())
-    ls_container = find_localstack_container(containers)
-    LOG.debug(f"found local stack container id: {ls_container.id}")
 
-    test_connectivity_to_localstack(client, ls_container)
+    source_container = cast(Container, client.containers.get(socket.gethostname()))
 
-    LOG.info("done")
+    if target_container_id is not None:
+        try:
+            target_container = cast(Container, client.containers.get(target_container_id))
+        except NotFound:
+            raise ClickException(f"could not find container {target_container_id}")
+    else:
+        containers = cast(list[Container], client.containers.list())
+        target_container = find_localstack_container(containers)
+        target_is_localstack = True
+
+    LOG.info(f"testing connectivity from {source_container.name} to {target_container.name}")
+    if target_is_localstack:
+        LOG.info("assuming target container is localstack")
+
+    if target_is_localstack:
+        test_connectivity_to_localstack(client, target_container)
+
+
+if __name__ == "__main__":
+    main()
