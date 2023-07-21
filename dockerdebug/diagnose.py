@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
-from typing import Type, Self, Any
+import socket
+from typing import Type, Self, Any, cast, Iterable
 from urllib.parse import urlunparse, ParseResult
 
 import click
 from docker import DockerClient
 from docker.models.containers import Container
+from docker.models.networks import Network
 import requests
 
 LOG = logging.getLogger(__name__)
@@ -70,6 +73,31 @@ class Suggestion:
         return self.preference > other.preference
 
 
+def find_self(client: DockerClient) -> Container:
+    """
+    Finding this container is not straightforward - we cannot use the hostname
+    since we are within the network namespace of a target container. Instead,
+    we have to look in other places.
+
+    We assume that there is only one debug container running.
+    """
+    for container in cast(Iterable[Container], client.containers.list()):
+        if container.labels.get("cloud.localstack.dockerdebug.name") == "dockerdebug":
+            return container
+
+    raise RuntimeError("could not find a reference to this container")
+
+
+@contextmanager
+def attach_to_network(network: Network, container_id: str | None = None):
+    container_id = container_id if container_id is not None else socket.gethostname()
+    network.connect(container_id)
+    try:
+        yield
+    finally:
+        network.disconnect(container_id)
+
+
 class Diagnoser:
     suggestions: list[Suggestion]
 
@@ -85,13 +113,14 @@ class Diagnoser:
             return
 
         LOG.info(f"cannot connect to container via name {container.name}")
+
         # try to find a way to connect to localstack
-        if networks := get_container_user_network_names(container):
-            for network in networks:
-                breakpoint()
-                # attach this container to the network and try
-                # detach this container from the network
-                pass
+        if network_names := get_container_user_network_names(container):
+            for network_name in network_names:
+                network = cast(Network, client.networks.get(network_name))
+                this_container = find_self(client)
+                with attach_to_network(network, container_id=this_container.id):
+                    breakpoint()
         else:
             LOG.info("no user-defined networks found")
             # TODO: test adding both source and target to the same network?
