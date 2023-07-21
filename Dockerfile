@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# So we can identify ourselves later with probe mode
+LABEL cloud.localstack.dockerdebug.name=dockerdebug
+
 WORKDIR /app
 RUN python -m venv .venv
 COPY setup.cfg setup.py ./
