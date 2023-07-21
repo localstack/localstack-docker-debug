@@ -165,7 +165,7 @@ class NetworkDefn(TypedDict):
     name: str
     subnet: str | None
     gateway: str | None
-    attached_container_ids: list[str]
+    containers: list[ContainerDefn]
 
 
 class InterfaceDefn(TypedDict):
@@ -187,17 +187,8 @@ class Prober:
         self.client = client
 
     def probe(self) -> dict:
-        networks = self._list_networks()
-        containers = self._list_containers()
-
-        return {
-            "networks": list(networks),
-            "containers": list(containers),
-        }
-
-    def _list_networks(self) -> Generator[NetworkDefn, None, None]:
+        networks = []
         for docker_network in cast(list[Network], self.client.networks.list(greedy=True)):
-            LOG.debug(f"found network {docker_network.name}")
             assert docker_network.attrs is not None
             network: NetworkDefn = {
                 "id": docker_network.id or "",
@@ -208,24 +199,24 @@ class Prober:
                 "gateway": _try_get_at_index(docker_network.attrs["IPAM"]["Config"], 0, {}).get(
                     "Gateway"
                 ),
-                "attached_container_ids": [container.id for container in docker_network.containers],
+                "containers": [
+                    self._extract_container_info(container)
+                    for container in docker_network.containers
+                ],
             }
-            yield network
+            networks.append(network)
 
-    def _list_containers(self) -> Generator[ContainerDefn, None, None]:
-        for docker_container in cast(list[Container], self.client.containers.list()):
-            LOG.debug(f"found container {docker_container.name}")
-            assert docker_container.attrs is not None
-            container: ContainerDefn = {
-                "id": docker_container.id or "",
-                "name": docker_container.name or "",
-                "labels": docker_container.labels,
-                "status": docker_container.status,
-                "interfaces": list(self._list_interfaces(docker_container)),
-            }
-            # if container["name"] == "2-no-subdomain-support-application-1":
-            #     breakpoint()
-            yield container
+        return {"networks": networks}
+
+    def _extract_container_info(self, docker_container: Container) -> ContainerDefn:
+        container: ContainerDefn = {
+            "id": docker_container.id or "",
+            "name": docker_container.name or "",
+            "labels": docker_container.labels,
+            "status": docker_container.status,
+            "interfaces": list(self._list_interfaces(docker_container)),
+        }
+        return container
 
     def _list_interfaces(self, container: Container) -> Generator[InterfaceDefn, None, None]:
         assert container.attrs is not None
