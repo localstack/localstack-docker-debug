@@ -1,6 +1,8 @@
+from __future__ import annotations
 import logging
 import socket
-from typing import Iterable, cast
+from dataclasses import dataclass
+from typing import Iterable, Type, cast, Self, Any
 from urllib.parse import urlunparse, ParseResult
 
 import click
@@ -87,23 +89,61 @@ def get_container_user_network_names(container: Container) -> list[str]:
     return network_names
 
 
-def test_connectivity_to_localstack(client: DockerClient, container: Container):
-    LOG.info("testing connectivity to LocalStack")
-    # try connecting as is using the container name
-    if container.name and can_connect_to_localstack_health_endpoint(container.name):
-        LOG.info("connectivity to target container successful")
-        return
+@dataclass
+class Suggestion:
+    user_facing_text: str
+    preference: int
 
-    LOG.info(f"cannot connect to container via name {container.name}")
-    # try to find a way to connect to localstack
-    if networks := get_container_user_network_names(container):
-        for network in networks:
-            breakpoint()
-            # attach this container to the network and try
-            # detach this container from the network
-            pass
-    else:
-        LOG.info("no user-defined networks found")
+    def __str__(self) -> str:
+        return self.user_facing_text
+
+    @classmethod
+    def add_user_defined_networks(cls: Type[Self]) -> Self:
+        return cls(
+            user_facing_text="Your container is not running in a docker user-defined network. Please see the troubleshooting docs: https://docs.localstack.cloud/references/network-troubleshooting/endpoint-url/#from-your-container",
+            preference=10,
+        )
+
+    def __gt__(self, other: Any) -> bool:
+        if not isinstance(other, self.__class__):
+            raise TypeError(f"cannot compare types {self.__class__} to {other.__class__}")
+
+        return self.preference > other.preference
+
+
+class Diagnoser:
+    suggestions: list[Suggestion]
+
+    def __init__(self, client: DockerClient):
+        self.client = client
+        self.suggestions = []
+
+    def present_suggestions(self):
+        click.echo("# Suggestions to fix your connectivity issue:")
+
+        # rely on Suggestion implementing __gt__
+        self.suggestions.sort()
+        for i, suggestion in enumerate(sorted(self.suggestions)):
+            click.echo(f"{i + 1}. {suggestion}")
+
+    def test_connectivity_to_localstack(self, client: DockerClient, container: Container):
+        LOG.info("testing connectivity to LocalStack")
+        # try connecting as is using the container name
+        if container.name and can_connect_to_localstack_health_endpoint(container.name):
+            LOG.info("connectivity to target container successful")
+            return
+
+        LOG.info(f"cannot connect to container via name {container.name}")
+        # try to find a way to connect to localstack
+        if networks := get_container_user_network_names(container):
+            for network in networks:
+                breakpoint()
+                # attach this container to the network and try
+                # detach this container from the network
+                pass
+        else:
+            LOG.info("no user-defined networks found")
+            self.suggestions.append(Suggestion.add_user_defined_networks())
 
 
 @click.group
@@ -126,6 +166,7 @@ def main():
 )
 def diagnose(target_container_id: str | None, target_is_localstack: bool):
     client = DockerClient()
+    diagnoser = Diagnoser(client)
 
     source_container = cast(Container, client.containers.get(socket.gethostname()))
 
@@ -142,9 +183,9 @@ def diagnose(target_container_id: str | None, target_is_localstack: bool):
     LOG.info(f"testing connectivity from {source_container.name} to {target_container.name}")
     if target_is_localstack:
         LOG.info("assuming target container is localstack")
+        diagnoser.test_connectivity_to_localstack(client, target_container)
 
-    if target_is_localstack:
-        test_connectivity_to_localstack(client, target_container)
+    diagnoser.present_suggestions()
 
 
 if __name__ == "__main__":
