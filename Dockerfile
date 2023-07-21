@@ -8,5 +8,4 @@ COPY setup.cfg setup.py ./
 RUN mkdir dockerdebug && echo '__version__ = "0.1.0"' > dockerdebug/__init__.py
 RUN /app/.venv/bin/python -m pip install -e .
 COPY dockerdebug/ /app/dockerdebug/
-ENTRYPOINT ["/app/.venv/bin/python"]
-CMD ["-m", "dockerdebug"]
+ENTRYPOINT ["/app/.venv/bin/python", "-m", "dockerdebug"]

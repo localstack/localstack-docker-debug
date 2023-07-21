@@ -17,4 +17,4 @@ IMAGE_NAME=simonrw/debug
 docker build -t $IMAGE_NAME .
 
 # run docker container
-docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock --network container:$SOURCE_CONTAINER $IMAGE_NAME -m dockerdebug diagnose $*
+docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock --network container:$SOURCE_CONTAINER $IMAGE_NAME diagnose $*
