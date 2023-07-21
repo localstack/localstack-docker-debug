@@ -1,8 +1,10 @@
 from __future__ import annotations
+from dataclasses import dataclass
+import json
 import logging
 import socket
-from dataclasses import dataclass
-from typing import Iterable, Type, cast, Self, Any
+import sys
+from typing import Iterable, Type, cast, Self, Any, TypedDict, TypeVar, Generator
 from urllib.parse import urlunparse, ParseResult
 
 import click
@@ -10,6 +12,7 @@ from click.exceptions import ClickException
 from docker import DockerClient
 from docker.errors import NotFound
 from docker.models.containers import Container
+from docker.models.networks import Network
 
 import requests
 
@@ -143,7 +146,97 @@ class Diagnoser:
                 pass
         else:
             LOG.info("no user-defined networks found")
+            # TODO: test adding both source and target to the same network?
             self.suggestions.append(Suggestion.add_user_defined_networks())
+
+
+T = TypeVar("T")
+
+
+def _try_get_at_index(l: list[T], index: int, default: T | None = None) -> T | None:
+    try:
+        return l[index]
+    except IndexError:
+        return default if default is not None else None
+
+
+class NetworkDefn(TypedDict):
+    id: str
+    name: str
+    subnet: str | None
+    gateway: str | None
+    attached_container_ids: list[str]
+
+
+class InterfaceDefn(TypedDict):
+    network_name: str
+    gateway: str
+    ip_address: str
+
+
+class ContainerDefn(TypedDict):
+    id: str
+    name: str
+    labels: dict[str, str]
+    status: str
+    interfaces: list[InterfaceDefn]
+
+
+class Prober:
+    def __init__(self, client: DockerClient):
+        self.client = client
+
+    def probe(self) -> dict:
+        networks = self._list_networks()
+        containers = self._list_containers()
+
+        return {
+            "networks": list(networks),
+            "containers": list(containers),
+        }
+
+    def _list_networks(self) -> Generator[NetworkDefn, None, None]:
+        for docker_network in cast(list[Network], self.client.networks.list(greedy=True)):
+            LOG.debug(f"found network {docker_network.name}")
+            assert docker_network.attrs is not None
+            network: NetworkDefn = {
+                "id": docker_network.id or "",
+                "name": docker_network.name or "",
+                "subnet": _try_get_at_index(docker_network.attrs["IPAM"]["Config"], 0, {}).get(
+                    "Subnet"
+                ),
+                "gateway": _try_get_at_index(docker_network.attrs["IPAM"]["Config"], 0, {}).get(
+                    "Gateway"
+                ),
+                "attached_container_ids": [container.id for container in docker_network.containers],
+            }
+            yield network
+
+    def _list_containers(self) -> Generator[ContainerDefn, None, None]:
+        for docker_container in cast(list[Container], self.client.containers.list()):
+            LOG.debug(f"found container {docker_container.name}")
+            assert docker_container.attrs is not None
+            container: ContainerDefn = {
+                "id": docker_container.id or "",
+                "name": docker_container.name or "",
+                "labels": docker_container.labels,
+                "status": docker_container.status,
+                "interfaces": list(self._list_interfaces(docker_container)),
+            }
+            # if container["name"] == "2-no-subdomain-support-application-1":
+            #     breakpoint()
+            yield container
+
+    def _list_interfaces(self, container: Container) -> Generator[InterfaceDefn, None, None]:
+        assert container.attrs is not None
+
+        for name, defn in container.attrs.get("NetworkSettings", {}).get("Networks", {}).items():
+            interface: InterfaceDefn = {
+                "network_name": name,
+                "gateway": defn.get("Gateway", ""),
+                "ip_address": defn.get("IPAddress", ""),
+            }
+            yield interface
 
 
 @click.group
@@ -186,6 +279,18 @@ def diagnose(target_container_id: str | None, target_is_localstack: bool):
         diagnoser.test_connectivity_to_localstack(client, target_container)
 
     diagnoser.present_suggestions()
+
+
+@main.command
+def probe():
+    """
+    Capture all running containers, their network attachments, their network interfaces
+    and output to a JSON report.
+    """
+    client = DockerClient()
+    prober = Prober(client)
+    report = prober.probe()
+    json.dump(report, sys.stdout, indent=2)
 
 
 if __name__ == "__main__":
