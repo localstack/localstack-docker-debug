@@ -78,6 +78,13 @@ class Diagnoser:
         self.suggestions = []
 
     def present_suggestions(self):
+        if not self.suggestions:
+            click.echo(
+                "Sorry we don't have any suggestions. Please see the troubleshooting docs: https://docs.localstack.cloud/references/network-troubleshooting/endpoint-url/#from-your-container",
+                err=True,
+            )
+            return
+
         click.echo("# Suggestions to fix your connectivity issue:")
 
         # rely on Suggestion implementing __gt__
