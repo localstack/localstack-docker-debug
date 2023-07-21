@@ -77,21 +77,6 @@ class Diagnoser:
         self.client = client
         self.suggestions = []
 
-    def present_suggestions(self):
-        if not self.suggestions:
-            click.echo(
-                "Sorry we don't have any suggestions. Please see the troubleshooting docs: https://docs.localstack.cloud/references/network-troubleshooting/endpoint-url/#from-your-container",
-                err=True,
-            )
-            return
-
-        click.echo("# Suggestions to fix your connectivity issue:")
-
-        # rely on Suggestion implementing __gt__
-        self.suggestions.sort()
-        for i, suggestion in enumerate(sorted(self.suggestions)):
-            click.echo(f"{i + 1}. {suggestion}")
-
     def test_connectivity_to_localstack(self, client: DockerClient, container: Container):
         LOG.info("testing connectivity to LocalStack")
         # try connecting as is using the container name
@@ -111,3 +96,18 @@ class Diagnoser:
             LOG.info("no user-defined networks found")
             # TODO: test adding both source and target to the same network?
             self.suggestions.append(Suggestion.add_user_defined_networks())
+
+    def present_suggestions(self):
+        if not self.suggestions:
+            click.echo(
+                "Sorry we don't have any suggestions. Please see the troubleshooting docs: https://docs.localstack.cloud/references/network-troubleshooting/endpoint-url/#from-your-container",
+                err=True,
+            )
+            return
+
+        click.echo("# Suggestions to fix your connectivity issue:")
+
+        # rely on Suggestion implementing __gt__
+        self.suggestions.sort()
+        for i, suggestion in enumerate(sorted(self.suggestions)):
+            click.echo(f"{i + 1}. {suggestion}")
