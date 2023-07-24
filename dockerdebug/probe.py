@@ -68,6 +68,7 @@ class Prober:
         container: ContainerDefn = {
             "id": docker_container.id or "",
             "name": docker_container.name or "",
+            "image": ", ".join(docker_container.image.tags),
             "labels": docker_container.labels,
             "status": docker_container.status,
             "interfaces": list(self._list_interfaces(docker_container)),
