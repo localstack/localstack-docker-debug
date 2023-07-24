@@ -4,7 +4,7 @@ mkShell {
   buildInputs = [
     docker
     dive
-    (python3.withPackages (ps: with ps; [
+    (python311.withPackages (ps: with ps; [
       dnspython
       dnslib
       ipython
