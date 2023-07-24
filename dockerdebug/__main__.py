@@ -14,8 +14,11 @@ from docker.models.containers import Container
 
 from dockerdebug.probe import Prober
 from dockerdebug.diagnose import Diagnoser
+from dockerdebug.connectivity import can_connect_to_localstack_health_endpoint
 
-logging.basicConfig(level=logging.WARNING, format="%(asctime)s | %(levelname)-8s | %(message)s")
+logging.basicConfig(
+    level=logging.WARNING, format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s"
+)
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
@@ -77,6 +80,9 @@ def main():
     is_flag=True,
 )
 def diagnose(target_container_id: str | None, target_is_localstack: bool):
+    """
+    Determine why your application container cannot access another container.
+    """
     client = DockerClient()
     diagnoser = Diagnoser(client)
 
@@ -110,6 +116,35 @@ def probe():
     prober = Prober(client)
     report = prober.probe()
     json.dump(report, sys.stdout, indent=2)
+
+
+# test is an internal command that is not very useful on its own, but when run from a docker container with a specific networking configuration, it evaluates connectivity between containers.
+@main.command
+@click.option(
+    "-t",
+    "--target-container",
+    "target_container_id",
+    required=True,
+    help="Container to test connectivity to. If not specified, assume LocalStack",
+)
+@click.option(
+    "-l",
+    "--localstack",
+    "target_is_localstack",
+    help="Assume target container is localstack",
+    is_flag=True,
+)
+def test(target_container_id: str, target_is_localstack: bool):
+    """
+    Test connectivity to another container.
+    """
+    if not target_is_localstack:
+        raise ClickException("TODO")
+
+    result = {
+        "connectivity": can_connect_to_localstack_health_endpoint(target_container_id),
+    }
+    json.dump(result, sys.stdout)
 
 
 if __name__ == "__main__":

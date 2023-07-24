@@ -13,7 +13,7 @@ trap "popd >/dev/null" EXIT
 # setup common variables
 source vars.sh
 
-docker network create $NETWORK_NAME
+docker network ls | grep -q $NETWORK_NAME || docker network create $NETWORK_NAME
 
 # build the application container
 docker build -t $APPLICATION_IMAGE_NAME .

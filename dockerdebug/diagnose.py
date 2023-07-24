@@ -5,37 +5,19 @@ from dataclasses import dataclass
 import logging
 import socket
 from typing import Type, Self, Any, cast, Iterable
-from urllib.parse import urlunparse, ParseResult
 
 import click
 from docker import DockerClient
 from docker.models.containers import Container
 from docker.models.networks import Network
-import requests
+
+from dockerdebug.connectivity import (
+    can_connect_to_localstack_health_endpoint,
+    can_connect_to_localstack_health_endpoint_from_container,
+)
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
-
-
-def can_connect_to_localstack_health_endpoint(
-    domain: str, port: int = 4566, protocol: str = "http"
-) -> bool:
-    url = urlunparse(
-        ParseResult(
-            scheme=protocol,
-            netloc=f"{domain}:{port}",
-            path="/_localstack/health",
-            params="",
-            query="",
-            fragment="",
-        )
-    )
-    try:
-        r = requests.get(url)
-    except requests.exceptions.ConnectionError:
-        return False
-
-    return r.status_code < 400
 
 
 def get_container_user_network_names(container: Container) -> list[str]:
@@ -58,6 +40,13 @@ class Suggestion:
 
     def __str__(self) -> str:
         return self.user_facing_text
+
+    @classmethod
+    def add_application_container_to_network(cls: Type[Self], network: Network) -> Self:
+        return cls(
+            user_facing_text=f"Your container is not running in the same docker user-defined network as the target. Please re-launch your container in the `{network.name}` network.",
+            preference=20,
+        )
 
     @classmethod
     def add_user_defined_networks(cls: Type[Self]) -> Self:
@@ -118,9 +107,14 @@ class Diagnoser:
         if network_names := get_container_user_network_names(container):
             for network_name in network_names:
                 network = cast(Network, client.networks.get(network_name))
-                this_container = find_self(client)
-                with attach_to_network(network, container_id=this_container.id):
-                    breakpoint()
+                if can_connect_to_localstack_health_endpoint_from_container(
+                    client,
+                    network,
+                    container.name,
+                ):
+                    self.suggestions.append(
+                        Suggestion.add_application_container_to_network(network)
+                    )
         else:
             LOG.info("no user-defined networks found")
             # TODO: test adding both source and target to the same network?
