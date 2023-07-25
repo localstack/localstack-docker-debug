@@ -107,7 +107,7 @@ def diagnose(target_container_id: str | None, target_is_localstack: bool):
     LOG.info(f"testing connectivity from {source_container.name} to {target_container.name}")
     if target_is_localstack:
         LOG.info("assuming target container is localstack")
-        diagnoser.test_connectivity_to_localstack(client, target_container)
+        diagnoser.test_connectivity_to_localstack(client, source_container, target_container)
 
     diagnoser.present_suggestions()
 

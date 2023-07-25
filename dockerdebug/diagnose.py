@@ -95,13 +95,19 @@ class Diagnoser:
         self.client = client
         self.suggestions = []
 
-    def test_connectivity_to_localstack(self, client: DockerClient, container: Container):
-        LOG.info("testing connectivity to LocalStack")
+    def test_connectivity_to_localstack(
+        self, client: DockerClient, source_container: Container, target_container: Container
+    ):
+        """
+        target_container == LocalStack
+        """
         # try connecting as is using the container name
-        if not container.name:
+        if not target_container.name:
             raise RuntimeError("no container name to test with")
 
-        match can_connect_to_localstack_health_endpoint(container.name):
+        LOG.info(f"testing connectivity to LocalStack from {source_container.name}")
+
+        match can_connect_to_localstack_health_endpoint(target_container.name):
             case CannotConnectReason.can_connect:
                 LOG.info("connectivity to target container successful")
                 return
@@ -109,21 +115,23 @@ class Diagnoser:
                 LOG.info("could reach localstack but got bad status code")
                 return
             case CannotConnectReason.dns:
-                LOG.info(f"could not resolve name {container.name}")
+                LOG.info(f"could not resolve name {target_container.name}")
             case CannotConnectReason.unknown:
                 LOG.info("could not connect to localstack health endpoint")
 
         LOG.info("running additional tests")
 
         # try to find a way to connect to localstack
-        if network_names := get_container_user_network_names(container):
+        network_names = get_container_user_network_names(source_container)
+        LOG.debug(f"found networks {network_names} attached to container {source_container.name}")
+        if network_names:
             for network_name in network_names:
                 LOG.debug(f"testing connectivity from network: {network_name}")
                 network = cast(Network, client.networks.get(network_name))
                 if can_connect_to_localstack_health_endpoint_from_container(
                     client,
                     network,
-                    container.name,
+                    target_container.name,
                 ):
                     LOG.debug("connectivity test successful")
                     self.suggestions.append(
