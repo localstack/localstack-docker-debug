@@ -14,10 +14,14 @@ from docker.models.containers import Container
 
 from dockerdebug.probe import Prober
 from dockerdebug.diagnose import Diagnoser
-from dockerdebug.connectivity import can_connect_to_localstack_health_endpoint, CustomEncoder
+from dockerdebug.connectivity import (
+    can_connect_to_localstack_health_endpoint,
+    CustomEncoder,
+)
 
 logging.basicConfig(
-    level=logging.WARNING, format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s"
+    level=logging.WARNING,
+    format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s",
 )
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
@@ -32,7 +36,9 @@ class MultipleLocalStackContainerCandidates(Exception):
         self.candidates = candidates
 
 
-def _containers_with_localstack_labels(containers: Iterable[Container]) -> set[Container]:
+def _containers_with_localstack_labels(
+    containers: Iterable[Container],
+) -> set[Container]:
     candidates = set()
     for container in containers:
         if container.labels.get("authors") == "LocalStack Contributors":
