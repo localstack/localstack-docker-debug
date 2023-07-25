@@ -9,7 +9,7 @@ ROOT_DIR=$(dirname $(readlink -f $0))
 pushd $ROOT_DIR >/dev/null
 trap "popd >/dev/null" EXIT
 
-for scenario in 1-missing-network-configuration 2-no-subdomain-support 3-urls-with-localhost; do
+for scenario in 1-missing-network-configuration 2-no-subdomain-support 3-urls-with-localhost 4-ls-in-network-not-target ; do
     (cd $scenario/cdk && npm install)
 done
 
