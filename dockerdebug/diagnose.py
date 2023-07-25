@@ -12,6 +12,7 @@ from docker.models.containers import Container
 from docker.models.networks import Network
 
 from dockerdebug.connectivity import (
+    CannotConnectReason,
     can_connect_to_localstack_health_endpoint,
     can_connect_to_localstack_health_endpoint_from_container,
 )
@@ -97,24 +98,39 @@ class Diagnoser:
     def test_connectivity_to_localstack(self, client: DockerClient, container: Container):
         LOG.info("testing connectivity to LocalStack")
         # try connecting as is using the container name
-        if container.name and can_connect_to_localstack_health_endpoint(container.name):
-            LOG.info("connectivity to target container successful")
-            return
+        if not container.name:
+            raise RuntimeError("no container name to test with")
 
-        LOG.info(f"cannot connect to container via name {container.name}")
+        match can_connect_to_localstack_health_endpoint(container.name):
+            case CannotConnectReason.can_connect:
+                LOG.info("connectivity to target container successful")
+                return
+            case CannotConnectReason.bad_status_code:
+                LOG.info("could reach localstack but got bad status code")
+                return
+            case CannotConnectReason.dns:
+                LOG.info(f"could not resolve name {container.name}")
+            case CannotConnectReason.unknown:
+                LOG.info("could not connect to localstack health endpoint")
+
+        LOG.info("running additional tests")
 
         # try to find a way to connect to localstack
         if network_names := get_container_user_network_names(container):
             for network_name in network_names:
+                LOG.debug(f"testing connectivity from network: {network_name}")
                 network = cast(Network, client.networks.get(network_name))
                 if can_connect_to_localstack_health_endpoint_from_container(
                     client,
                     network,
                     container.name,
                 ):
+                    LOG.debug("connectivity test successful")
                     self.suggestions.append(
                         Suggestion.add_application_container_to_network(network)
                     )
+                else:
+                    LOG.debug("cannot connect")
         else:
             LOG.info("no user-defined networks found")
             # TODO: test adding both source and target to the same network?

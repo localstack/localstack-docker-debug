@@ -14,7 +14,7 @@ from docker.models.containers import Container
 
 from dockerdebug.probe import Prober
 from dockerdebug.diagnose import Diagnoser
-from dockerdebug.connectivity import can_connect_to_localstack_health_endpoint
+from dockerdebug.connectivity import can_connect_to_localstack_health_endpoint, CustomEncoder
 
 logging.basicConfig(
     level=logging.WARNING, format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s"
@@ -144,7 +144,7 @@ def test(target_container_id: str, target_is_localstack: bool):
     result = {
         "connectivity": can_connect_to_localstack_health_endpoint(target_container_id),
     }
-    json.dump(result, sys.stdout)
+    json.dump(result, sys.stdout, cls=CustomEncoder)
 
 
 if __name__ == "__main__":
