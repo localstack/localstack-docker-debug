@@ -43,6 +43,13 @@ class Suggestion:
         return self.user_facing_text
 
     @classmethod
+    def add_localstack_as_dns_for_subdomain_support(cls: Type[Self]) -> Self:
+        return cls(
+            user_facing_text="Your container can access LocalStack, however arbitrary subdomain support is not possible. Consider setting the IP address of the LocalStack container as your DNS server.",
+            preference=0,
+        )
+
+    @classmethod
     def add_application_container_to_network(cls: Type[Self], network: Network) -> Self:
         return cls(
             user_facing_text=f"Your container is not running in the same docker user-defined network as the target. Please re-launch your container in the `{network.name}` network.",
@@ -110,6 +117,10 @@ class Diagnoser:
         match can_connect_to_localstack_health_endpoint(target_container.name):
             case CannotConnectReason.can_connect:
                 LOG.info("connectivity to target container successful")
+                # TODO: once DNS has been implemented in LocalStack, add a
+                # suggestion to set LocalStack as the DNS server to support
+                # arbitrary subdomains
+                # self.suggestions.append(Suggestion.add_localstack_as_dns_for_subdomain_support())
                 return
             case CannotConnectReason.bad_status_code:
                 LOG.info("could reach localstack but got bad status code")
