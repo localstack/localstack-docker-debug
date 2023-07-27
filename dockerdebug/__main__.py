@@ -4,22 +4,21 @@ import json
 import logging
 from pathlib import Path
 import sys
-import tempfile
-from typing import cast, Iterable, Tuple, TypedDict
+from typing import cast, Iterable
 
 import click
 from click.exceptions import ClickException
 from docker import DockerClient
 from docker.errors import NotFound
 from docker.models.containers import Container
-import graphviz
 
-from dockerdebug.probe import Prober, NetworkDefn, ContainerDefn
+from dockerdebug.probe import Prober, ProbeDefn
 from dockerdebug.diagnose import GeneralDiagnoser, LocalStackDiagnoser
 from dockerdebug.connectivity import (
     can_connect_to_localstack_health_endpoint,
     CustomEncoder,
 )
+from dockerdebug.render import render_graph
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -165,24 +164,6 @@ def test(target_container_id: str, target_is_localstack: bool):
     json.dump(result, sys.stdout, cls=CustomEncoder)
 
 
-class ProbeDefn(TypedDict):
-    networks: list[NetworkDefn]
-
-
-NODE_ID: int = 0
-
-
-def container_name_and_label(container: ContainerDefn) -> Tuple[str, str]:
-    global NODE_ID
-    name = container["name"]
-    sanitised = name.replace("-", "_")
-    # TODO: return node and label
-    label = f"{sanitised} - {container['interfaces'][0]['ip_address']}"
-
-    NODE_ID += 1
-    return name, label
-
-
 @main.command
 @click.option("-f", "--filename", help="File to render", type=Path, required=True)
 def render(filename: Path):
@@ -192,23 +173,7 @@ def render(filename: Path):
     with filename.open() as infile:
         top: ProbeDefn = json.load(infile)
 
-    dot = graphviz.Digraph()
-
-    for i, network in enumerate(top["networks"]):
-        network_name = f'{network["name"]} - {network["subnet"]}'
-        if len(network["containers"]) == 0:
-            continue
-
-        with dot.subgraph(name=f"cluster_{i}", graph_attr={"label": network_name}) as g:
-            for container in network["containers"]:
-                g.node(*container_name_and_label(container))
-
-    with tempfile.NamedTemporaryFile("r+t") as outfile:
-        dot.render(outfile.name)
-        outfile.seek(0)
-        contents = outfile.read()
-
-    print(contents)
+    render_graph(top)
 
 
 if __name__ == "__main__":

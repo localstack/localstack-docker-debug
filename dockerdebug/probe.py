@@ -38,11 +38,15 @@ class ContainerDefn(TypedDict):
     interfaces: list[InterfaceDefn]
 
 
+class ProbeDefn(TypedDict):
+    networks: list[NetworkDefn]
+
+
 class Prober:
     def __init__(self, client: DockerClient):
         self.client = client
 
-    def probe(self) -> dict:
+    def probe(self) -> ProbeDefn:
         networks = []
         for docker_network in cast(list[Network], self.client.networks.list(greedy=True)):
             assert docker_network.attrs is not None
