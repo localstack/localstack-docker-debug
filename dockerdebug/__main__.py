@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
-import io
 from pathlib import Path
 import sys
 import tempfile
-from typing import cast, Iterable, TypedDict
+from typing import cast, Iterable, Tuple, TypedDict
 
 import click
 from click.exceptions import ClickException
@@ -15,7 +14,7 @@ from docker.errors import NotFound
 from docker.models.containers import Container
 import graphviz
 
-from dockerdebug.probe import Prober, NetworkDefn, InterfaceDefn, ContainerDefn
+from dockerdebug.probe import Prober, NetworkDefn, ContainerDefn
 from dockerdebug.diagnose import GeneralDiagnoser, LocalStackDiagnoser
 from dockerdebug.connectivity import (
     can_connect_to_localstack_health_endpoint,
@@ -173,7 +172,7 @@ class ProbeDefn(TypedDict):
 NODE_ID: int = 0
 
 
-def container_name_and_label(container: ContainerDefn) -> (str, str):
+def container_name_and_label(container: ContainerDefn) -> Tuple[str, str]:
     global NODE_ID
     name = container["name"]
     sanitised = name.replace("-", "_")
