@@ -24,8 +24,8 @@ logging.basicConfig(
     level=logging.WARNING,
     format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s",
 )
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
+LOG = logging.getLogger("dockerdebug")
+LOG.setLevel(logging.WARNING)
 
 
 class CannotFindLocalStackContainer(Exception):
@@ -69,8 +69,10 @@ def find_localstack_container(containers: Iterable[Container]) -> Container:
 
 
 @click.group
-def main():
-    pass
+@click.option("-v", "--verbose", is_flag=True, default=False)
+def main(verbose: bool):
+    if verbose:
+        LOG.setLevel(logging.DEBUG)
 
 
 @main.command
@@ -118,7 +120,7 @@ def diagnose(source_container_id: str, target_container_id: str | None, target_i
     else:
         diagnoser = GeneralDiagnoser(client, source_container, target_container)
 
-    diagnoser.perform_connectivity_test()
+    diagnoser.test_connectivity()
 
 
 @main.command

@@ -176,3 +176,5 @@ pyrightconfig.json
 
 docker-network-diagnosis
 /results.json
+*.dot
+*.png
