@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+RUN apt-get update && \
+        apt-get install -y curl && \
+        apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # So we can identify ourselves later with probe mode
 LABEL cloud.localstack.dockerdebug.name=dockerdebug
 

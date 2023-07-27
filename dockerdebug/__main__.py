@@ -13,7 +13,7 @@ from docker.errors import NotFound
 from docker.models.containers import Container
 
 from dockerdebug.probe import Prober
-from dockerdebug.diagnose import Diagnoser
+from dockerdebug.diagnose import GeneralDiagnoser, LocalStackDiagnoser
 from dockerdebug.connectivity import (
     can_connect_to_localstack_health_endpoint,
     CustomEncoder,
@@ -74,6 +74,13 @@ def main():
 
 @main.command
 @click.option(
+    "-s",
+    "--source-container",
+    "source_container_id",
+    help="Container to test connectivity from",
+    required=True,
+)
+@click.option(
     "-t",
     "--target-container",
     "target_container_id",
@@ -85,14 +92,13 @@ def main():
     help="Assume target container is localstack",
     is_flag=True,
 )
-def diagnose(target_container_id: str | None, target_is_localstack: bool):
+def diagnose(source_container_id: str, target_container_id: str | None, target_is_localstack: bool):
     """
     Determine why your application container cannot access another container.
     """
     client = DockerClient()
-    diagnoser = Diagnoser(client)
 
-    source_container = cast(Container, client.containers.get(socket.gethostname()))
+    source_container = cast(Container, client.containers.get(source_container_id))
 
     if target_container_id is not None:
         try:
@@ -107,9 +113,11 @@ def diagnose(target_container_id: str | None, target_is_localstack: bool):
     LOG.info(f"testing connectivity from {source_container.name} to {target_container.name}")
     if target_is_localstack:
         LOG.info("assuming target container is localstack")
-        diagnoser.test_connectivity_to_localstack(client, source_container, target_container)
+        diagnoser = LocalStackDiagnoser(client, source_container, target_container)
+    else:
+        diagnoser = GeneralDiagnoser(client, source_container, target_container)
 
-    diagnoser.present_suggestions()
+    diagnoser.perform_connectivity_test()
 
 
 @main.command
