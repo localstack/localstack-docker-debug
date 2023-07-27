@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
-import socket
+import io
 from pathlib import Path
 import sys
+import tempfile
 from typing import cast, Iterable, TypedDict
 
 import click
@@ -12,6 +13,7 @@ from click.exceptions import ClickException
 from docker import DockerClient
 from docker.errors import NotFound
 from docker.models.containers import Container
+import graphviz
 
 from dockerdebug.probe import Prober, NetworkDefn, InterfaceDefn, ContainerDefn
 from dockerdebug.diagnose import GeneralDiagnoser, LocalStackDiagnoser
@@ -171,16 +173,15 @@ class ProbeDefn(TypedDict):
 NODE_ID: int = 0
 
 
-def container_name(container: ContainerDefn) -> str:
+def container_name_and_label(container: ContainerDefn) -> (str, str):
     global NODE_ID
     name = container["name"]
     sanitised = name.replace("-", "_")
     # TODO: return node and label
     label = f"{sanitised} - {container['interfaces'][0]['ip_address']}"
 
-    entry = f'{NODE_ID} [label="{label}"];'
     NODE_ID += 1
-    return entry
+    return name, label
 
 
 @main.command
@@ -192,17 +193,23 @@ def render(filename: Path):
     with filename.open() as infile:
         top: ProbeDefn = json.load(infile)
 
-    print("digraph G {")
+    dot = graphviz.Digraph()
 
     for i, network in enumerate(top["networks"]):
         network_name = f'{network["name"]} - {network["subnet"]}'
-        print(f"subgraph cluster_{i} {{")
-        print(f'label = "{network_name}";')
-        for container in network["containers"]:
-            print(container_name(container))
-        print("}")
+        if len(network["containers"]) == 0:
+            continue
 
-    print("}")
+        with dot.subgraph(name=f"cluster_{i}", graph_attr={"label": network_name}) as g:
+            for container in network["containers"]:
+                g.node(*container_name_and_label(container))
+
+    with tempfile.NamedTemporaryFile("r+t") as outfile:
+        dot.render(outfile.name)
+        outfile.seek(0)
+        contents = outfile.read()
+
+    print(contents)
 
 
 if __name__ == "__main__":

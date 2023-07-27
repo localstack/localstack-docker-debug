@@ -13,8 +13,10 @@ mkShell {
       docker
       pudb
       click
+      graphviz
     ]))
     watchexec
+    graphviz
   ];
   PYTHONBREAKPOINT = "pudb.set_trace";
 }
