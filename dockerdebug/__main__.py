@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import socket
+from pathlib import Path
 import sys
-from typing import cast, Iterable
+from typing import cast, Iterable, TypedDict
 
 import click
 from click.exceptions import ClickException
@@ -12,7 +13,7 @@ from docker import DockerClient
 from docker.errors import NotFound
 from docker.models.containers import Container
 
-from dockerdebug.probe import Prober
+from dockerdebug.probe import Prober, NetworkDefn, InterfaceDefn, ContainerDefn
 from dockerdebug.diagnose import GeneralDiagnoser, LocalStackDiagnoser
 from dockerdebug.connectivity import (
     can_connect_to_localstack_health_endpoint,
@@ -159,6 +160,47 @@ def test(target_container_id: str, target_is_localstack: bool):
         "connectivity": can_connect_to_localstack_health_endpoint(target_container_id),
     }
     json.dump(result, sys.stdout, cls=CustomEncoder)
+
+
+class ProbeDefn(TypedDict):
+    networks: list[NetworkDefn]
+
+
+NODE_ID: int = 0
+
+
+def container_name(container: ContainerDefn) -> str:
+    global NODE_ID
+    name = container["name"]
+    sanitised = name.replace("-", "_")
+    # TODO: return node and label
+    label = f"{sanitised} - {container['interfaces'][0]['ip_address']}"
+
+    entry = f'{NODE_ID} [label="{label}"];'
+    NODE_ID += 1
+    return entry
+
+
+@main.command
+@click.option("-f", "--filename", help="File to render", type=Path, required=True)
+def render(filename: Path):
+    """
+    Render a network graph
+    """
+    with filename.open() as infile:
+        top: ProbeDefn = json.load(infile)
+
+    print("digraph G {")
+
+    for i, network in enumerate(top["networks"]):
+        network_name = f'{network["name"]} - {network["subnet"]}'
+        print(f"subgraph cluster_{i} {{")
+        print(f'label = "{network_name}";')
+        for container in network["containers"]:
+            print(container_name(container))
+        print("}")
+
+    print("}")
 
 
 if __name__ == "__main__":
