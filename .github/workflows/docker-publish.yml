@@ -12,7 +12,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: localstack-docker-debug
+  IMAGE_NAME: ${{ github.actor }}/localstack-docker-debug
 
 jobs:
   build:
