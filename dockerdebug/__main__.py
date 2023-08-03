@@ -136,7 +136,7 @@ def probe():
 
 
 # test is an internal command that is not very useful on its own, but when run from a docker container with a specific networking configuration, it evaluates connectivity between containers.
-@main.command
+@main.command(hidden=True)
 @click.option(
     "-t",
     "--target-container",
@@ -164,7 +164,7 @@ def test(target_container_id: str, target_is_localstack: bool):
     json.dump(result, sys.stdout, cls=CustomEncoder)
 
 
-@main.command
+@main.command(hidden=True)
 @click.option("-f", "--filename", help="File to render", type=Path, required=True)
 def render(filename: Path):
     """
