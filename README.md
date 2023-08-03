@@ -83,6 +83,17 @@ open output.png
 1. Install `dot` (graphviz)
 2. `pip install -e .`
 
+### Scenarios
+
+This repository contains scenarios that help explore how this tool works.
+Under the `scenarios` subdirectory, there are a number of samples, each that set up docker containers.
+Each sample contains the following scripts:
+
+* `setup.sh`: set up the scenario
+* `test.sh`: demonstrate the connectivity issue
+* `teardown.sh`: remove resources created by the `setup.sh` script
+
+
 ## Security
 
 We mount the docker socket because we have to be able to run docker commands.
