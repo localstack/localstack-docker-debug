@@ -135,35 +135,6 @@ def probe():
     json.dump(report, sys.stdout, indent=2)
 
 
-# test is an internal command that is not very useful on its own, but when run from a docker container with a specific networking configuration, it evaluates connectivity between containers.
-@main.command(hidden=True)
-@click.option(
-    "-t",
-    "--target-container",
-    "target_container_id",
-    required=True,
-    help="Container to test connectivity to. If not specified, assume LocalStack",
-)
-@click.option(
-    "-l",
-    "--localstack",
-    "target_is_localstack",
-    help="Assume target container is localstack",
-    is_flag=True,
-)
-def test(target_container_id: str, target_is_localstack: bool):
-    """
-    Test connectivity to another container.
-    """
-    if not target_is_localstack:
-        raise ClickException("TODO")
-
-    result = {
-        "connectivity": can_connect_to_localstack_health_endpoint(target_container_id),
-    }
-    json.dump(result, sys.stdout, cls=CustomEncoder)
-
-
 @main.command(hidden=True)
 @click.option("-f", "--filename", help="File to render", type=Path, required=True)
 def render(filename: Path):
