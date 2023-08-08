@@ -24,7 +24,7 @@ The general usage of this mode is to run
 
 ```bash
 docker run --rm \
-    -v /var/run/docker.sock:/var/run/socker.sock \
+    -v /var/run/docker.sock:/var/run/docker.sock \
     ghcr.io/simonrw/localstack-docker-debug:main \
         diagnose \
         --source-container "Application Container" \
@@ -43,7 +43,7 @@ This mode scans your docker network for network specific information about the c
 
 ```bash
 docker run --rm \
-    -v /var/run/docker.sock:/var/run/socker.sock \
+    -v /var/run/docker.sock:/var/run/docker.sock \
     ghcr.io/simonrw/localstack-docker-debug:main \
         probe
 ```
