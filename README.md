@@ -45,7 +45,7 @@ This mode scans your docker network for network specific information about the c
 docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     ghcr.io/simonrw/localstack-docker-debug:main \
-        probe
+        probe > topology.json
 ```
 
 This command collects:
@@ -66,6 +66,7 @@ This command collects:
             * gateway
             * ip address
 
+and outputs the results to `topology.json`.
 
 ## LocalStack team usage
 
