@@ -16,8 +16,30 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  # Test the package
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
+      - name: Install OS packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3.10-venv
+
+      - name: Install packages
+        run: |
+          python -m venv venv
+          ./venv/bin/python -m pip install .[dev]
+
+      - name: Run tests
+        run:
+          ./venv/bin/python -m pytest tests
+
+  build:
+    needs:
+      - test
     runs-on: ubuntu-latest
     permissions:
       contents: read

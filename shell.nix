@@ -4,6 +4,7 @@ mkShell {
   buildInputs = [
     docker
     dive
+    act
     (python311.withPackages (ps: with ps; [
       dnspython
       dnslib
@@ -14,6 +15,7 @@ mkShell {
       pudb
       click
       graphviz
+      pytest
     ]))
     watchexec
     graphviz
