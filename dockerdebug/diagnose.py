@@ -270,7 +270,7 @@ class LocalStackDiagnoser(Diagnoser):
 
         try:
             self.client.containers.run(
-                image="DEBUG_IMAGE_NAME",
+                image=DEBUG_IMAGE_NAME,
                 entrypoint="bash",
                 command=["-c", f"curl {health_endpoint}"],
                 network=test_network_name,
