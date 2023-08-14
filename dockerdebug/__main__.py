@@ -14,10 +14,6 @@ from docker.models.containers import Container
 
 from dockerdebug.probe import Prober, ProbeDefn
 from dockerdebug.diagnose import GeneralDiagnoser, LocalStackDiagnoser
-from dockerdebug.connectivity import (
-    can_connect_to_localstack_health_endpoint,
-    CustomEncoder,
-)
 from dockerdebug.render import render_graph
 
 logging.basicConfig(
