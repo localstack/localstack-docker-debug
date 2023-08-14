@@ -7,21 +7,16 @@ from enum import Enum, auto
 import logging
 import socket
 import uuid
-from typing import Callable, ContextManager, Generator, Protocol, Type, Self, Any, cast, Iterable
+from typing import Callable, Type, Self, Any, cast, Iterable
 
 from docker import DockerClient
 from docker.errors import ContainerError, NotFound
 from docker.models.containers import Container
 from docker.models.networks import Network
 
-from dockerdebug.connectivity import (
-    CannotConnectReason,
-    can_connect_to_localstack_health_endpoint,
-    can_connect_to_localstack_health_endpoint_from_container,
-)
+from dockerdebug.constants import DEBUG_IMAGE_NAME
 
 LOG = logging.getLogger(__name__)
-# LOG.setLevel(logging.DEBUG)
 
 
 class Protocol(Enum):
@@ -164,7 +159,7 @@ class Diagnoser(ABC):
     def test_dns(self, test_container_network_name: str | None = None) -> bool:
         try:
             self.client.containers.run(
-                image="simonrw/debug:latest",
+                image=DEBUG_IMAGE_NAME,
                 entrypoint="python",
                 command=[
                     "-c",
@@ -261,7 +256,6 @@ class LocalStackDiagnoser(Diagnoser):
             # recurse back into the test
             return self.perform_connectivity_test(test_network_name)
 
-
         print("No further suggestions to make")
 
     def test_health_endpoint(
@@ -276,7 +270,7 @@ class LocalStackDiagnoser(Diagnoser):
 
         try:
             self.client.containers.run(
-                image="simonrw/debug:latest",
+                image="DEBUG_IMAGE_NAME",
                 entrypoint="bash",
                 command=["-c", f"curl {health_endpoint}"],
                 network=test_network_name,
