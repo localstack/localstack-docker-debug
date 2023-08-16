@@ -6,15 +6,16 @@ mkShell {
     dive
     act
     (python311.withPackages (ps: with ps; [
-      dnspython
-      dnslib
-      ipython
-      go
       awscli2
-      docker
-      pudb
       click
+      dnslib
+      dnspython
+      docker
+      flask
+      go
       graphviz
+      ipython
+      pudb
       pytest
     ]))
     watchexec
