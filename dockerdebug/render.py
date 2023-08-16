@@ -61,7 +61,9 @@ def container_name_and_label(
     global NODE_ID
     name = f'{container["name"]}_{short_uid()}'
 
-    network_subnet = ipaddress.IPv4Network(network["subnet"])
+    # strict here does not fail when host bits are set
+    # likely a windows thing
+    network_subnet = ipaddress.IPv4Network(network["subnet"], strict=False)
 
     ip_addresses = []
     for interface in container["interfaces"]:
