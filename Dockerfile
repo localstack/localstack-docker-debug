@@ -1,8 +1,17 @@
 FROM python:3.11-slim
 
+# Install helful tools for debugging even without using the
+# python package
 RUN apt-get update && \
-        apt-get install -y curl && \
-        apt-get clean && rm -rf /var/lib/apt/lists/*
+        apt-get install -y \
+            curl \
+            iproute2 \
+            dnsutils \
+            netcat-traditional \
+            nmap \
+            jq \
+            openssl \
+        && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # So we can identify ourselves later with probe mode
 LABEL cloud.localstack.dockerdebug.name=dockerdebug

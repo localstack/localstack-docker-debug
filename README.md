@@ -68,6 +68,49 @@ This command collects:
 
 and outputs the results to `topology.json`.
 
+### Bundled networking tools
+
+In addition to the code bundled in this docker image, we also add a few networking tools to the container, so that they can be run to gather more information.
+The tools we bundle are listed in the [`Dockerfile`](https://github.com/localstack/localstack-docker-debug/tree/main/Dockerfile#L7-L13).
+
+To use the desired tool, run
+
+```bash
+docker run --rm \
+    --entrypoint <tool> \
+    ghcr.io/localstack/localstack-docker-debug:main \
+    <args>
+```
+
+for example
+
+```
+docker run --rm \
+    --entrypoint dig \
+    ghcr.io/localstack/localstack-docker-debug:main \
+    example.com
+
+; <<>> DiG 9.18.16-1~deb12u1-Debian <<>> example.com
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 47090
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+;; QUESTION SECTION:
+;example.com.                   IN      A
+
+;; ANSWER SECTION:
+example.com.            78631   IN      A       93.184.216.34
+
+;; Query time: 10 msec
+;; SERVER: 192.168.0.2#53(192.168.0.2) (UDP)
+;; WHEN: Wed Aug 16 08:34:44 UTC 2023
+;; MSG SIZE  rcvd: 56
+```
+
+
 ## LocalStack team usage
 
 This tool can be installed as a pip package, and gives access to an additional command: `render`.
