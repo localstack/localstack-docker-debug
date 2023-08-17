@@ -130,10 +130,10 @@ docker run --rm \
     ghcr.io/localstack/localstack-docker-debug:main render \
     -f /topology.json > out.dot
 docker run --rm \
-    -v $PWD/out.dot:/out.dot \
+    -v $PWD:/out \
     --entrypoint dot \
     ghcr.io/localstack/localstack-docker-debug:main \
-    -Tpng /out.dot > out.png
+    -Tpng /out/out.dot -o /out/out.png
 ```
 
 ### Package installation
