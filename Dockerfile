@@ -11,6 +11,7 @@ RUN apt-get update && \
             nmap \
             jq \
             openssl \
+            graphviz \
         && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # So we can identify ourselves later with probe mode
