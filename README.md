@@ -122,6 +122,20 @@ dot -Tpng -o output.png output.dot
 open output.png
 ```
 
+If this doesn't work, you can generate the png in the container:
+
+```bash
+docker run --rm \
+    -v <path to topology.json>:/topology.json \
+    ghcr.io/localstack/localstack-docker-debug:main render \
+    -f /topology.json > out.dot
+docker run --rm \
+    -v $PWD/out.dot:/out.dot \
+    --entrypoint dot \
+    ghcr.io/localstack/localstack-docker-debug:main \
+    -Tpng /out.dot > out.png
+```
+
 ### Package installation
 
 1. Install `dot` (graphviz)
