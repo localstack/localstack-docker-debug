@@ -12,6 +12,7 @@ RUN apt-get update && \
             jq \
             openssl \
             graphviz \
+            tini \
         && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # So we can identify ourselves later with probe mode
@@ -25,4 +26,4 @@ COPY setup.cfg setup.py ./
 RUN mkdir dockerdebug && echo '__version__ = "0.1.0"' > dockerdebug/__init__.py
 RUN /app/.venv/bin/python -m pip install -e .
 COPY dockerdebug/ /app/dockerdebug/
-ENTRYPOINT ["/app/.venv/bin/python", "-m", "dockerdebug"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/app/.venv/bin/python", "-m", "dockerdebug"]
