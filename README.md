@@ -2,6 +2,9 @@
 
 This repository contains the source code for the LocalStack docker debug application.
 
+> [!TIP]
+> Please see the [Network Troubleshooting Guide](https://docs.localstack.cloud/references/network-troubleshooting) for more up to date guidance.
+
 ## Usage
 
 If you have an issue with your docker networking setup, you can use this docker container to investigate further.
