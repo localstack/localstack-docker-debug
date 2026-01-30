@@ -6,6 +6,11 @@ set -eou pipefail
 # _without_ using docker networking. Set up an application container that tries
 # to access LocalStack but cannot.
 
+if test -z ${LOCALSTACK_AUTH_TOKEN:-}; then
+    echo "Error: must set LOCALSTACK_AUTH_TOKEN" >&2
+    exit 1
+fi
+
 ROOT_DIR=$(dirname $(readlink -f $0))
 pushd $ROOT_DIR >/dev/null
 trap "popd >/dev/null" EXIT
@@ -19,7 +24,7 @@ docker build -t $APPLICATION_IMAGE_NAME .
 # start localstack
 docker rm -f $LOCALSTACK_CONTAINER_NAME 2>/dev/null || true
 # NOTE: publishing the port is required for the CDK deployment :(
-docker run --rm -it -d --name $LOCALSTACK_CONTAINER_NAME -v /var/run/docker.sock:/var/run/docker.sock -p 4566:4566 localstack/localstack
+docker run --rm -it -d --name $LOCALSTACK_CONTAINER_NAME -v /var/run/docker.sock:/var/run/docker.sock -p 4566:4566 -e LOCALSTACK_AUTH_TOKEN=$LOCALSTACK_AUTH_TOKEN localstack/localstack-pro
 # wait for ls to be up
 echo "Waiting for LocalStack to be ready" >&2
 while true; do

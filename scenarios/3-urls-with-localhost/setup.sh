@@ -6,6 +6,11 @@ set -eou pipefail
 # _without_ using docker networking. Set up an application container that tries
 # to access LocalStack but cannot.
 
+if test -z ${LOCALSTACK_AUTH_TOKEN:-}; then
+    echo "Error: must set LOCALSTACK_AUTH_TOKEN" >&2
+    exit 1
+fi
+
 ROOT_DIR=$(dirname $(readlink -f $0))
 pushd $ROOT_DIR >/dev/null
 trap "popd >/dev/null" EXIT

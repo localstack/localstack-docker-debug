@@ -2,11 +2,13 @@ version: "3.8"
 
 services:
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack-pro
     ports:
       - "127.0.0.1:4566:4566"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - LOCALSTACK_AUTH_TOKEN=$LOCALSTACK_AUTH_TOKEN
 
   application:
     build: .
